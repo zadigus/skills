@@ -34,7 +34,7 @@ digraph session {
     rankdir=TB;
     start [label="User requests\nverb training", shape=doublecircle];
     check_anki [label="Check AnkiConnect\nis reachable", shape=box];
-    ensure_deck [label="Ensure deck\n'magyar igek' exists", shape=box];
+    ensure_deck [label="Ensure deck\n'magyar igék' exists", shape=box];
     ask_tense [label="Ask: which tense(s)?", shape=box, style=filled, fillcolor="#ccffcc"];
     ask_count [label="Ask: how many\nquestions?", shape=box, style=filled, fillcolor="#ccffcc"];
     pick_verb [label="Pick random verb +\nperson + conj. type", shape=box];
@@ -77,13 +77,13 @@ If not reachable, tell the user to open Anki and install AnkiConnect (see Prereq
 
 ### 2. Ensure Deck Exists
 
-Create the deck "magyar igek" if it doesn't exist:
+Create the deck "magyar igék" if it doesn't exist:
 
 ```bash
 curl -s http://localhost:8765 -X POST -d '{
   "action": "createDeck",
   "version": 6,
-  "params": {"deck": "magyar igek"}
+  "params": {"deck": "magyar igék"}
 }'
 ```
 
@@ -97,7 +97,7 @@ curl -s http://localhost:8765 -X POST -d '{
   "version": 6,
   "params": {
     "note": {
-      "deckName": "magyar igek",
+      "deckName": "magyar igék",
       "modelName": "Basic (and reversed card)",
       "fields": {
         "Front": "lenni",
@@ -123,7 +123,7 @@ Check if a verb already exists before adding:
 curl -s http://localhost:8765 -X POST -d '{
   "action": "findNotes",
   "version": 6,
-  "params": {"query": "deck:\"magyar igek\" front:lenni"}
+  "params": {"query": "deck:\"magyar igék\" front:lenni"}
 }'
 ```
 
@@ -164,7 +164,31 @@ Conjugation: tárgyas (definite)
 6. Wait for the user's answer
 7. Check correctness:
    - If **correct**: confirm and move on
-   - If **wrong**: show the correct form, briefly explain the pattern (vowel harmony, ik-verb, etc.), and add the verb to Anki if not already there
+   - If **wrong**: show the correct form, **explain in English why the answer was wrong**, and add the verb to Anki if not already there
+
+### Error Explanations (MANDATORY)
+
+When the user gives an incorrect answer, you MUST explain **in English** what went wrong. Do NOT just show the correct form — explain the **specific grammatical reason** for the error. This is the most valuable part of the training.
+
+**Types of explanations to give:**
+
+| Error Type | Example Explanation |
+|------------|---------------------|
+| Vowel harmony | "This verb has a back-vowel stem (lát-), so the suffix uses back vowels: -om, not -em." |
+| Wrong personal ending | "For én in tárgyas present tense, the ending is -om/-em/-öm, not -ok/-ek/-ök. You used the alanyi ending." |
+| Alanyi vs tárgyas confusion | "The question asked for tárgyas (definite), but 'olvasok' is the alanyi form. The tárgyas form is 'olvasom'." |
+| Ik-verb specifics | "Eszik is an ik-verb. In E/3 alanyi present, ik-verbs end in -ik: eszik, not *esz." |
+| Irregular stem | "Menni has an irregular stem: the present tense uses megy-, not men-. So it's megyek, not *menek." |
+| Consonant assimilation | "In felszólító mód, the -j assimilates with the final -t of the stem: lát + -ja becomes lássa (t+j → ss)." |
+| Tense marker errors | "In múlt idő, the tense marker for this verb is -ott (back vowel after consonant cluster): látott, not *látt." |
+| Future tense exceptions | "Lenni doesn't use 'fog + infinitive'. It has its own future forms: leszek, leszel, lesz, etc." |
+
+**Rules for explanations:**
+- Always explain in **English** (the user is learning Hungarian)
+- Be **specific** to the actual mistake (don't give generic grammar lectures)
+- Name the grammatical concept (vowel harmony, ik-verb, consonant assimilation, etc.)
+- When relevant, show the **pattern** so the user can generalize (e.g., "back-vowel verbs always use -om/-od/-ja in tárgyas")
+- Keep it concise: 1-3 sentences maximum
 
 ## Hungarian Conjugation Reference
 
@@ -243,6 +267,10 @@ At the end of each session, save a results file to `~/Documents/magyar/verb-trai
 | 2 | menni | múlt idő | ő | alanyi | ment | ment | ✅ |
 | 3 | enni | jelen idő | te | alanyi | esz | eszel | ❌ |
 
+### Explanations for Wrong Answers
+
+**Q3 — enni, jelen idő, te, alanyi:** Eszik is an ik-verb. For te in alanyi present, the ending is -el: eszel, not esz. The bare stem form "esz" doesn't exist as a standalone conjugated form.
+
 ## Verbs to Review
 - enni (to eat) -- struggled with present tense alanyi forms
 ```
@@ -257,7 +285,7 @@ curl -s http://localhost:8765 -X POST -d '{
   "version": 6,
   "params": {
     "note": {
-      "deckName": "magyar igek",
+      "deckName": "magyar igék",
       "modelName": "Basic (and reversed card)",
       "fields": {
         "Front": "[infinitive]",
@@ -285,3 +313,5 @@ If the verb is already in the verb list, use the translation and example from th
 | Not saving results at session end | Always save to ~/Documents/magyar/verb-training-results/ |
 | Asking all questions at once | One question at a time, wait for user's answer |
 | Mixing up alanyi and tárgyas | Clearly state which conjugation type in each question |
+| Showing correct answer without explanation | ALWAYS explain in English WHY the answer was wrong (see Error Explanations section) |
+| Giving generic grammar explanations | Be specific to the user's actual mistake, not a general lecture |
