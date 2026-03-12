@@ -101,7 +101,7 @@ curl -s http://localhost:8765 -X POST -d '{
       "modelName": "Basic (and reversed card)",
       "fields": {
         "Front": "lenni",
-        "Back": "to be\n\nÉn magyar vagyok."
+        "Back": "to be"
       },
       "options": {
         "allowDuplicate": false
@@ -114,7 +114,7 @@ curl -s http://localhost:8765 -X POST -d '{
 
 **Card format:**
 - **Front:** Hungarian infinitive (e.g., `lenni`)
-- **Back:** English translation + blank line + A1 example sentence
+- **Back:** English translation (e.g., `to be`)
 - **Model:** `Basic (and reversed card)`
 - **Tags:** `magyar`, `ige`
 
@@ -289,7 +289,7 @@ curl -s http://localhost:8765 -X POST -d '{
       "modelName": "Basic (and reversed card)",
       "fields": {
         "Front": "[infinitive]",
-        "Back": "[english]\n\n[example sentence]"
+        "Back": "[english]"
       },
       "options": {
         "allowDuplicate": false
@@ -300,7 +300,7 @@ curl -s http://localhost:8765 -X POST -d '{
 }'
 ```
 
-If the verb is already in the verb list, use the translation and example from there. If it's a verb not in the list (user-provided), ask the user for the English meaning and compose a simple A1 example.
+If the verb is already in the verb list, use the translation from there. If it's a verb not in the list (user-provided), ask the user for the English meaning.
 
 ## Common Mistakes (Agent)
 
