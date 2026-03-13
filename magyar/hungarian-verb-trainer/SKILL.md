@@ -7,25 +7,7 @@ description: Use when the user wants to practice Hungarian verb conjugation, whe
 
 ## Overview
 
-Train the user on Hungarian verb conjugation through interactive quiz sessions. The agent picks random verbs and asks the user to conjugate them in specific tenses, persons, and conjugation types (definite/indefinite). Verbs the user doesn't know are added to their Anki deck.
-
-## Prerequisites: AnkiConnect Setup
-
-The skill requires the **AnkiConnect** addon to add cards to Anki programmatically.
-
-**To install AnkiConnect:**
-1. Open Anki
-2. Go to **Tools > Add-ons > Get Add-ons...**
-3. Enter addon code: **2055492159**
-4. Click OK, restart Anki
-
-AnkiConnect runs a REST API on `http://localhost:8765` while Anki is open. **Anki must be running** during training sessions for card additions to work.
-
-**Verify it works:**
-```bash
-curl -s http://localhost:8765 -X POST -d '{"action":"version","version":6}'
-```
-Expected response: `{"result":6,"error":null}`
+Train the user on Hungarian verb conjugation through interactive quiz sessions. The agent picks verbs and asks the user to conjugate them in specific tenses, persons, and conjugation types (definite/indefinite). Questions are adapted based on past mistakes to reinforce weak areas.
 
 ## Session Flow
 
@@ -33,101 +15,74 @@ Expected response: `{"result":6,"error":null}`
 digraph session {
     rankdir=TB;
     start [label="User requests\nverb training", shape=doublecircle];
-    check_anki [label="Check AnkiConnect\nis reachable", shape=box];
-    ensure_deck [label="Ensure deck\n'magyar igék' exists", shape=box];
+    review_history [label="Read past results from\n~/Documents/magyar/\nverb-training-results/\nIdentify error patterns", shape=box, style=filled, fillcolor="#ffffcc"];
     ask_tense [label="Ask: which tense(s)?", shape=box, style=filled, fillcolor="#ccffcc"];
     ask_count [label="Ask: how many\nquestions?", shape=box, style=filled, fillcolor="#ccffcc"];
-    pick_verb [label="Pick random verb +\nperson + conj. type", shape=box];
+    pick_verb [label="Pick verb + person +\nconj. type\n(adaptive selection)", shape=box];
     ask_user [label="Present question\nto user", shape=box];
     check_answer [label="User answers", shape=diamond];
     correct [label="Confirm correct\nMove to next", shape=box, style=filled, fillcolor="#ccffcc"];
     wrong [label="Show correct form\nExplain pattern", shape=box, style=filled, fillcolor="#ffcccc"];
-    add_anki [label="Add verb to Anki\n(if not already there)", shape=box, style=filled, fillcolor="#ffffcc"];
     more [label="More questions?", shape=diamond];
     results [label="Save results to\n~/Documents/magyar/\nverb-training-results/", shape=box];
     done [label="Session complete", shape=doublecircle];
 
-    start -> check_anki;
-    check_anki -> ensure_deck;
-    ensure_deck -> ask_tense;
+    start -> review_history;
+    review_history -> ask_tense;
     ask_tense -> ask_count;
     ask_count -> pick_verb;
     pick_verb -> ask_user;
     ask_user -> check_answer;
     check_answer -> correct [label="correct"];
     check_answer -> wrong [label="wrong"];
-    wrong -> add_anki;
+    wrong -> more;
     correct -> more;
-    add_anki -> more;
     more -> pick_verb [label="yes"];
     more -> results [label="no"];
     results -> done;
 }
 ```
 
-### 1. Check AnkiConnect
+### 1. Review Past Results (Adaptive Selection)
 
-Before starting, verify AnkiConnect is reachable:
+Before starting, read ALL results files from `~/Documents/magyar/verb-training-results/`. Analyze:
 
-```bash
-curl -s http://localhost:8765 -X POST -d '{"action":"version","version":6}'
-```
+1. **Which verbs were answered incorrectly** and what the specific errors were
+2. **Categorize each error** into a grammatical pattern (see Error Categories below)
+3. **Identify verbs from the same family** — verbs that follow the same grammatical rules as the ones the user got wrong
 
-If not reachable, tell the user to open Anki and install AnkiConnect (see Prerequisites).
+**Error Categories:**
 
-### 2. Ensure Deck Exists
+| Category | Description | Example errors |
+|----------|-------------|----------------|
+| Back/front vowel tárgyas endings | Using -i/-ik/-itek on back-vowel verbs or vice versa | hallani→halli, mutatni→mutati |
+| Consonant assimilation | Not assimilating z+j→zz, s+j→ss, etc. | főzni→főzjük, érezni→érezjük |
+| Alanyi vs tárgyas confusion | Giving alanyi form when tárgyas asked or vice versa | adni→adsz (alanyi) instead of adod (tárgyas) |
+| Sibilant stem E/2 | Using -sz instead of -ol/-el/-öl after sibilant stems | olvasni→olvassz instead of olvasol |
+| Irregular stems | Wrong stem for irregular verbs | menni→megytek instead of mentek |
+| Present/past confusion | Giving past forms instead of present or vice versa | jönni→jöttek instead of jöttök |
+| Vowel harmony in endings | Wrong linking vowel (back vs front) | próbálni→próbálünk instead of próbálunk |
+| Transparent vowels | Mishandling í/é as harmony-determining | tanítani→tanítik instead of tanítják |
 
-Create the deck "magyar igék" if it doesn't exist:
+**Adaptive Question Selection:**
 
-```bash
-curl -s http://localhost:8765 -X POST -d '{
-  "action": "createDeck",
-  "version": 6,
-  "params": {"deck": "magyar igék"}
-}'
-```
+Approximately **half the questions** should target the user's weak areas by picking **different verbs from the same grammatical family** as previously-missed verbs. The key rule:
 
-### 3. Bulk-Add Verbs to Anki (First Session)
+> **Do NOT re-test the exact same verb+person+conjugation that was missed.** Instead, pick a DIFFERENT verb that follows the same grammatical rule, to test whether the user has learned the pattern (not just memorized one form).
 
-On the first session (or when verbs are missing from the deck), add all verbs from verbs.md to Anki. Use the `multi` action to batch:
+**Examples of "same family" substitutions:**
 
-```bash
-curl -s http://localhost:8765 -X POST -d '{
-  "action": "addNote",
-  "version": 6,
-  "params": {
-    "note": {
-      "deckName": "magyar igék",
-      "modelName": "Basic (and reversed card)",
-      "fields": {
-        "Front": "lenni",
-        "Back": "to be"
-      },
-      "options": {
-        "allowDuplicate": false
-      },
-      "tags": ["magyar", "ige"]
-    }
-  }
-}'
-```
+| Original error | Rule being tested | Alternative verb to use |
+|----------------|-------------------|------------------------|
+| hallani E/3 tárgyas (back-vowel, -ja) | Back-vowel E/3 tárgyas ending | mondani, várni, kapni, zárni |
+| főzni T/1 tárgyas (z+j assimilation) | Consonant assimilation with -z stem | hozni, érezni, nézni, vezet |
+| olvasni E/2 alanyi (sibilant stem) | Sibilant stem E/2 alanyi (-ol/-el not -sz) | főzni, hozni, keresni, nézni |
+| menni T/2 alanyi (irregular stem) | Irregular stem that changes across persons | jönni, enni, inni, venni, vinni |
+| tanítani T/3 tárgyas (transparent í) | Transparent vowel + back-vowel harmony | segíteni→NOT (front), nyitni, hívni |
 
-**Card format:**
-- **Front:** Hungarian infinitive (e.g., `lenni`)
-- **Back:** English translation (e.g., `to be`)
-- **Model:** `Basic (and reversed card)`
-- **Tags:** `magyar`, `ige`
+The remaining questions should be randomly selected to maintain breadth.
 
-Check if a verb already exists before adding:
-```bash
-curl -s http://localhost:8765 -X POST -d '{
-  "action": "findNotes",
-  "version": 6,
-  "params": {"query": "deck:\"magyar igék\" front:lenni"}
-}'
-```
-
-### 4. Ask Tense Selection
+### 2. Ask Tense Selection
 
 Present these options to the user:
 
@@ -140,14 +95,14 @@ Present these options to the user:
 | 5 | Felszólító mód | Imperative / subjunctive mood |
 | 6 | Minden | All tenses (random selection each question) |
 
-### 5. Ask Session Length
+### 3. Ask Session Length
 
 Ask the user how many questions they want (e.g., 10, 20, 50).
 
-### 6. Run the Quiz
+### 4. Run the Quiz
 
 For each question:
-1. Pick a **random verb** from verbs.md
+1. Pick a verb (adaptive or random — see Adaptive Selection above)
 2. Pick a **random person**: én, te, ő/ön, mi, ti, ők/önök
 3. Pick a **random conjugation type**: alanyi (indefinite) or tárgyas (definite)
 4. Pick a **random tense** (from the user's selection)
@@ -164,7 +119,7 @@ Conjugation: tárgyas (definite)
 6. Wait for the user's answer
 7. Check correctness:
    - If **correct**: confirm and move on
-   - If **wrong**: show the correct form, **explain in English why the answer was wrong**, and add the verb to Anki if not already there
+   - If **wrong**: show the correct form and **explain in English why the answer was wrong**
 
 ### Error Explanations (MANDATORY)
 
@@ -275,39 +230,12 @@ At the end of each session, save a results file to `~/Documents/magyar/verb-trai
 - enni (to eat) -- struggled with present tense alanyi forms
 ```
 
-## Adding a Verb to Anki Mid-Session
-
-When the user gets a verb wrong and it's not already in the deck:
-
-```bash
-curl -s http://localhost:8765 -X POST -d '{
-  "action": "addNote",
-  "version": 6,
-  "params": {
-    "note": {
-      "deckName": "magyar igék",
-      "modelName": "Basic (and reversed card)",
-      "fields": {
-        "Front": "[infinitive]",
-        "Back": "[english]"
-      },
-      "options": {
-        "allowDuplicate": false
-      },
-      "tags": ["magyar", "ige"]
-    }
-  }
-}'
-```
-
-If the verb is already in the verb list, use the translation from there. If it's a verb not in the list (user-provided), ask the user for the English meaning.
-
 ## Common Mistakes (Agent)
 
 | Mistake | Fix |
 |---------|-----|
-| Not checking AnkiConnect before starting | Always verify connectivity first |
-| Adding duplicate cards to Anki | Check with `findNotes` before `addNote` |
+| Not reviewing past results before starting | Always read ~/Documents/magyar/verb-training-results/ first |
+| Re-testing exact same verb+person+conj that was missed | Use a DIFFERENT verb from the same grammatical family |
 | Using `fog lenni` for future of lenni | lenni has its own future: leszek, leszel, lesz... |
 | Accepting wrong answers silently | Always verify against known conjugation tables |
 | Not saving results at session end | Always save to ~/Documents/magyar/verb-training-results/ |
@@ -315,3 +243,4 @@ If the verb is already in the verb list, use the translation from there. If it's
 | Mixing up alanyi and tárgyas | Clearly state which conjugation type in each question |
 | Showing correct answer without explanation | ALWAYS explain in English WHY the answer was wrong (see Error Explanations section) |
 | Giving generic grammar explanations | Be specific to the user's actual mistake, not a general lecture |
+| Making ALL questions adaptive | Keep ~50% random for breadth; only ~50% target weak areas |
