@@ -295,6 +295,7 @@ for i in range(0, len(parsed_cards), BATCH_SIZE):
 | Calling flashcard API directly with requests | Returns 403. Must intercept responses via Playwright navigation. |
 | Using `headless=True` with Playwright | SPA stuck on "Loading". Must use `headless=False`. |
 | Adding all cards in one `addNotes` call | Times out when downloading audio for 500+ cards. Use batches of 50. |
+| One duplicate in a batch fails the entire batch | `addNotes` rejects ALL notes in a batch if any single note is a duplicate. Recover failed batches by retrying cards individually with `addNote` (singular). HungarianPod101 decks can contain duplicate Hungarian words with different meanings (e.g. `óra` = "hour" and `óra` = "class"). |
 | Not injecting cookies to `.languagepod101.com` | Flashcard API is on a different domain; needs cookies on both domains. |
 | Forgetting to parse `content` field as JSON | The `content` field inside each flashcard is a JSON string, not an object. |
 | AnkiConnect not responding after addon install | User must **restart Anki** for addon to activate. |
