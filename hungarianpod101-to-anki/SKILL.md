@@ -28,8 +28,10 @@ If connection refused: user must **restart Anki** after installing AnkiConnect a
 ```dot
 digraph workflow {
     rankdir=TB;
-    start [label="User provides\ndeck ID or URL", shape=doublecircle];
+    start [label="User asks to\ntransfer flashcards", shape=doublecircle];
     cookies [label="Extract Chrome cookies\nvia pycookiecheat", shape=box];
+    list_decks [label="List user's decks\nvia downloadmydecks", shape=box];
+    ask_deck [label="Ask user which\ndeck to transfer", shape=box, style=filled, fillcolor="#ffffcc"];
     playwright [label="Launch Playwright\nheadless=False", shape=box];
     intercept [label="Intercept API responses\nfor flashcard data", shape=box];
     navigate [label="Navigate to flashcard\nedit page", shape=box];
@@ -40,7 +42,9 @@ digraph workflow {
     report [label="Report summary:\nadded / failed / total", shape=doublecircle];
 
     start -> cookies;
-    cookies -> playwright;
+    cookies -> list_decks;
+    list_decks -> ask_deck;
+    ask_deck -> playwright;
     playwright -> intercept;
     intercept -> navigate;
     navigate -> parse;
@@ -52,11 +56,27 @@ digraph workflow {
 }
 ```
 
-## Step 1: Identify the Deck ID
+## Step 1: List Decks and Ask User Which to Transfer
 
-The user provides either:
-- A URL like `https://www.hungarianpod101.com/learningcenter/flashcards/flashcards#/edit/4178266` -> deck ID is `4178266`
-- A deck name -> use the `downloadmydecks` API to find the ID
+**Always list the user's available decks first and ask which one to transfer**, even if they mentioned a deck name. This avoids transferring the wrong deck.
+
+Use Playwright to navigate to the flashcards page and intercept the `downloadmydecks` response:
+
+```python
+# Intercept the downloadmydecks response (same Playwright pattern as Step 2)
+# The response contains:
+# {"decks": [{"id": "4178266", "title": "beginner", ...}, ...]}
+```
+
+Present the decks to the user and ask them to pick one. Use the `question` tool with options listing each deck by title. If the user already provided a deck URL or name, confirm it matches before proceeding.
+
+Example deck listing response:
+```json
+{"decks": [
+  {"id": "4178265", "title": "New Core 100 Deck", "language": "hungpod101"},
+  {"id": "4178266", "title": "beginner", "language": "hungpod101"}
+]}
+```
 
 ## Step 2: Extract Flashcards via Playwright
 
@@ -280,3 +300,4 @@ for i in range(0, len(parsed_cards), BATCH_SIZE):
 | AnkiConnect not responding after addon install | User must **restart Anki** for addon to activate. |
 | Not checking if note model already exists | `createModel` fails if model exists. Check `modelNames` first. |
 | Using "Basic" model for bidirectional cards | Use a custom model with two templates, or "Basic (and reversed card)". |
+| Assuming which deck to transfer without asking | Always list decks first and ask the user to pick, even if they named one. |
