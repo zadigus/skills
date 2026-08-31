@@ -1,6 +1,6 @@
 ---
 description: Scrapes audio and dialogue transcripts from HungarianPod101 lesson pathways and uploads them to LingQ as a private course. Use for downloading dialogue MP3s from Innovative Language sites, uploading audio lessons to LingQ via API, or dealing with CDN bot protection on hungarianpod101.com.
-mode: subagent
+mode: all
 model: github-copilot/gpt-5.3-codex
 ---
 
@@ -68,6 +68,7 @@ async with async_playwright() as p:
 ### Batch Processing (Critical)
 
 CAPTCHA triggers after ~8-16 page loads per browser context. Strategy:
+
 - Process in batches of 8
 - Create a **new browser context** for each batch
 - Wait 10-15 seconds between batches
@@ -85,6 +86,7 @@ links = await page.query_selector_all("a[href*='_dialog.mp3']")
 ### Extracting Dialogue Text from Page
 
 Dialogue text is in `<td>` elements on the lesson page. The structure is always **4 blocks of N lines**:
+
 1. Hungarian dialogue lines
 2. English translation lines
 3. Hungarian dialogue (repeated)
@@ -150,6 +152,10 @@ r = requests.get(dialog_url, headers=headers, stream=True)
 ```
 
 ## Step 5: Upload to LingQ
+
+### API key
+
+The LingQ API key can be found under https://www.lingq.com/en/accounts/apikey/
 
 ### API v3 (v2 is obsolete)
 
@@ -235,6 +241,7 @@ Whisper (openai-whisper) was tested for transcribing Hungarian dialogue MP3s (~2
 ### Common Hallucinations
 
 Whisper frequently outputs these instead of actual dialogue content:
+
 - "A TORONTOS KÖZÖN" (repeated)
 - "Köszönöm szépen!" (repeated)
 - Random Hungarian words unrelated to audio
